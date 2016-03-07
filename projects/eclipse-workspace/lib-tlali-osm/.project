@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>lib-tlali-osm</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>org.eclipse.cdt.managedbuilder.core.genmakebuilder</name>
+			<triggers>clean,full,incremental,</triggers>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
+			<name>org.eclipse.cdt.managedbuilder.core.ScannerConfigBuilder</name>
+			<triggers>full,incremental,</triggers>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>org.eclipse.cdt.core.cnature</nature>
+		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
+		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>src/tlali-osm.c</name>
+			<type>1</type>
+			<location>/Users/mortegam/Desktop/NIBSA_proyectos/CltNicaraguaBinary/lib-tlali-openstreetmap/lib-tlali-openstreetmap/src/tlali-osm.c</location>
+		</link>
+		<link>
+			<name>src/tlali-osm.h</name>
+			<type>1</type>
+			<location>/Users/mortegam/Desktop/NIBSA_proyectos/CltNicaraguaBinary/lib-tlali-openstreetmap/lib-tlali-openstreetmap/include/tlali-osm.h</location>
+		</link>
+	</linkedResources>
+</projectDescription>
