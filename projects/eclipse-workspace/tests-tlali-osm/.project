@@ -27,7 +27,7 @@
 		<link>
 			<name>src/tests-main.c</name>
 			<type>1</type>
-			<location>/Users/mortegam/Desktop/NIBSA_proyectos/CltNicaraguaBinary/lib-tlali-openstreetmap/lib-tlali-openstreetmap/src/tests/tests-main.c</location>
+			<locationURI>$%7BPARENT-3-PROJECT_LOC%7D/src/tests/tests-main.c</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>

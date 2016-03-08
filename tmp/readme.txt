@@ -1,1 +1,1 @@
-Some (or all) of the IDE projects are configured to generate their output on then "bin" and "tmp" folders.
+Some (or all) of the IDE projects are configured to generate their output to the folders "bin" and "tmp".
