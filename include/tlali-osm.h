@@ -11,7 +11,7 @@
 //  This software is provided "as is", with absolutely no warranty expressed
 //  or implied. Any use is at your own risk.
 //
-//  Latest fixes enhancements and documentation at https://github.com/nicaraguabinary/tlali-osm
+//  Latest fixes enhancements and documentation at https://github.com/nicaraguabinary/lib-tlali-openstreetmap
 //
 
 #ifndef tlali_tlali_osm_h
@@ -36,6 +36,8 @@ extern "C" {
 //
 //#define TLA_MALLOC(POINTER_DEST, POINTER_TYPE, SIZE_BYTES)
 //#define TLA_FREE(POINTER)
+
+
 //---------------------------------
 //---------------------------------
 //-- Data types
@@ -119,7 +121,11 @@ TlaBOOL		osmGetRelById(STTlaOsm* obj, STTlaRel* dst, const TlaSI64 refId);
 
 //Load
 TlaBOOL		osmLoadFromFileXml(STTlaOsm* obj, FILE* fileStream);
-
+TlaBOOL		osmInitFromFileBinary(STTlaOsm* obj, FILE* fileStream);
+	
+//Save
+TlaBOOL		osmSaveToFileAsBinary(STTlaOsm* obj, FILE* fileStream);
+	
 #ifdef __cplusplus
 } //extern "C" {
 #endif

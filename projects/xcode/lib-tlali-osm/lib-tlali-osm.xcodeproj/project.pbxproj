@@ -26,10 +26,10 @@
 
 /* Begin PBXFileReference section */
 		2C04057C1C8E285A005529DD /* libtlali-osm-osx.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libtlali-osm-osx.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		2C0405801C8E287F005529DD /* tlali-osm.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "tlali-osm.c"; path = "../../../src/tlali-osm.c"; sourceTree = "<group>"; };
-		2C0405811C8E287F005529DD /* tlali-osm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "tlali-osm.h"; path = "../../../include/tlali-osm.h"; sourceTree = "<group>"; };
+		2C0405801C8E287F005529DD /* tlali-osm.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "tlali-osm.c"; path = "../../../src/tlali-osm.c"; sourceTree = SOURCE_ROOT; };
+		2C0405811C8E287F005529DD /* tlali-osm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "tlali-osm.h"; path = "../../../include/tlali-osm.h"; sourceTree = SOURCE_ROOT; };
 		2C0405881C8E28D4005529DD /* tests-tlali-osm-osx */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "tests-tlali-osm-osx"; sourceTree = BUILT_PRODUCTS_DIR; };
-		2C04058F1C8E2AA7005529DD /* tests-main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "tests-main.c"; path = "../../../../src/tests/tests-main.c"; sourceTree = "<group>"; };
+		2C04058F1C8E2AA7005529DD /* tests-main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "tests-main.c"; path = "../../../src/tests/tests-main.c"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -378,6 +378,7 @@
 				2C04057F1C8E285A005529DD /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		2C04058C1C8E28D4005529DD /* Build configuration list for PBXNativeTarget "tests-tlali-osm-osx" */ = {
 			isa = XCConfigurationList;
@@ -386,6 +387,7 @@
 				2C04058E1C8E28D4005529DD /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
