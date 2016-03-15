@@ -17,8 +17,6 @@
 #ifndef tlali_tlali_osm_h
 #define tlali_tlali_osm_h
 
-#include <stdio.h>		//FILE*
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -100,6 +98,12 @@ typedef struct STTlaRelMember_ {
 	TlaSI32		opaquePtr;
 } STTlaRelMember;
 
+//Stream read/write functions prototypes
+//User program must define this functions
+//and pass them as parameters on load/save functions.
+typedef TlaSI32 (*TlaReadFromStreamFunc)(void* dstBuffer, const TlaSI32 sizeOfBlock, const TlaSI32 maxBlocksToRead, void* userData);
+typedef TlaSI32 (*TlaWriteToStreamFunc)(const void* srcBuffer, const TlaSI32 sizeOfBlock, const TlaSI32 maxBlocksToWrite, void* userData);
+	
 //Factory
 void		osmInit(STTlaOsm* obj);
 void		osmRelease(STTlaOsm* obj);
@@ -120,11 +124,11 @@ TlaBOOL		osmGetWayById(STTlaOsm* obj, STTlaWay* dst, const TlaSI64 refId);
 TlaBOOL		osmGetRelById(STTlaOsm* obj, STTlaRel* dst, const TlaSI64 refId);
 
 //Load
-TlaBOOL		osmLoadFromFileXml(STTlaOsm* obj, FILE* fileStream);
-TlaBOOL		osmInitFromFileBinary(STTlaOsm* obj, FILE* fileStream);
+TlaBOOL		osmLoadFromXmlStream(STTlaOsm* obj, TlaReadFromStreamFunc readFunc, void* readFuncParam);
+TlaBOOL		osmInitFromBinaryStream(STTlaOsm* obj, TlaReadFromStreamFunc readFunc, void* readFuncParam);
 	
 //Save
-TlaBOOL		osmSaveToFileAsBinary(STTlaOsm* obj, FILE* fileStream);
+TlaBOOL		osmSaveToBinaryStream(STTlaOsm* obj, TlaWriteToStreamFunc writeFunc, void* writeFuncParam);
 	
 #ifdef __cplusplus
 } //extern "C" {

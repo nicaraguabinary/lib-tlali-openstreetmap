@@ -95,8 +95,8 @@ void* TLAArray_add(STTLAArray* obj, const void* data, const TlaSI32 itemSize);
 void* TLAArray_addItems(STTLAArray* obj, const void* data, const TlaSI32 itemSize, const TlaSI32 itemsCount);
 void* TLAArray_set(STTLAArray* obj, const TlaSI32 index, const void* data, const TlaSI32 itemSize);
 //File
-TlaBOOL TLAArray_writeToFile(const STTLAArray* obj, FILE* file, const TlaBOOL includeUnusedBuffer);
-TlaBOOL TLAArray_initFromFile(STTLAArray* obj, FILE* file, TlaBYTE* optExternalBuffer);
+TlaBOOL TLAArray_writeToFile(const STTLAArray* obj, TlaWriteToStreamFunc writeFunc, void* funcParam, const TlaBOOL includeUnusedBuffer);
+TlaBOOL TLAArray_initFromFile(STTLAArray* obj, TlaReadFromStreamFunc readFunc, void* funcParam, TlaBYTE* optExternalBuffer);
 
 //+++++++++++++++++++++++++++++++
 //+++++++++++++++++++++++++++++++
@@ -122,8 +122,8 @@ TlaSI32 TLAArraySorted_add(STTLAArraySorted* obj, const void* data, const TlaSI3
 //Remove
 void TLAArraySorted_removeItemAtIndex(STTLAArraySorted* obj, const TlaSI32 index);
 //File
-TlaBOOL TLAArraySorted_writeToFile(const STTLAArraySorted* obj, FILE* file, const TlaBOOL includeUnusedBuffer);
-TlaBOOL TLAArraySorted_initFromFile(STTLAArraySorted* obj, FILE* file, TlaBYTE* optExternalBuffer);
+TlaBOOL TLAArraySorted_writeToFile(const STTLAArraySorted* obj, TlaWriteToStreamFunc writeFunc, void* funcParam, const TlaBOOL includeUnusedBuffer);
+TlaBOOL TLAArraySorted_initFromFile(STTLAArraySorted* obj, TlaReadFromStreamFunc readFunc, void* funcParam, TlaBYTE* optExternalBuffer);
 //
 TlaSI32 TLAArraySorted_bytesCompare(const void* base, const void* compare, const TlaSI32 sizeInBytes);
 
@@ -186,8 +186,8 @@ double TLAString_toDoubleIfValid(const char* string, const double valueDefault);
 TlaSI32 TLAString_toTlaSI32FromHexIfValid(const char* string, const TlaSI32 valueDefault);
 TlaSI32 TLAString_toTlaSI32FromHexLenIfValid(const char* string, const TlaSI32 strLen, const TlaSI32 valueDefault);
 //File
-TlaBOOL TLAString_writeToFile(const STTLAString* obj, FILE* file, const TlaBOOL includeUnusedBuffer);
-TlaBOOL TLAString_initFromFile(STTLAString* obj, FILE* file);
+TlaBOOL TLAString_writeToFile(const STTLAString* obj, TlaWriteToStreamFunc writeFunc, void* funcParam, const TlaBOOL includeUnusedBuffer);
+TlaBOOL TLAString_initFromFile(STTLAString* obj, TlaReadFromStreamFunc readFunc, void* funcParam);
 
 
 
@@ -1243,7 +1243,7 @@ TlaBOOL __osmSTTlaDataPriv_rebuildIndexes(STTlaDataPriv* obj){
 //-- OSM parsing code - XML specific
 //------------------
 
-TlaBOOL osmLoadFromFileXml(STTlaOsm* pObj, FILE* fileStream){
+TlaBOOL osmLoadFromXmlStream(STTlaOsm* pObj, TlaReadFromStreamFunc readFunc, void* funcParam){
 	TlaBOOL r = TLA_FALSE;
 	STTlaDataPriv* obj = (STTlaDataPriv*)pObj->opaqueData;
 	TlaBOOL xmlLogicError = TLA_FALSE;
@@ -1274,7 +1274,7 @@ TlaBOOL osmLoadFromFileXml(STTlaOsm* pObj, FILE* fileStream){
 		//Parse content
 		do {
 			TlaSI32 iByteDone = 0;
-			countBytesLoaded = (TlaSI32)fread(readBuff, sizeof(char), 10240, fileStream);
+			countBytesLoaded = (*readFunc)(readBuff, sizeof(char), 10240, funcParam);
 			while(iByteDone < countBytesLoaded && !xmlLogicError){
 				//Identificar el siguiente caracter especial
 				TlaSI32 iNextSpecialChar = iByteDone; //'<', ' ', '\t', '\r', '\n', '=', '/', '>'
@@ -1490,36 +1490,36 @@ TlaBOOL osmLoadFromFileXml(STTlaOsm* pObj, FILE* fileStream){
 	return r;
 };
 
-TlaBOOL osmInitFromFileBinary(STTlaOsm* pObj, FILE* fileStream){
+TlaBOOL osmInitFromBinaryStream(STTlaOsm* pObj, TlaReadFromStreamFunc readFunc, void* funcParam){
 	TlaSI32 verfiStart, verifEnd;
 	//Init opaque data
 	STTlaDataPriv* obj; TLA_MALLOC(obj, STTlaDataPriv, sizeof(STTlaDataPriv));
 	pObj->opaqueData = obj;
 	//
-	verfiStart = 0; fread(&verfiStart, sizeof(verfiStart), 1, fileStream);
+	verfiStart = 0; (*readFunc)(&verfiStart, sizeof(verfiStart), 1, funcParam);
 	if(verfiStart != TLA_FILE_VERIF_START){
 		return TLA_FALSE;
 	}
 	//
-	if(!TLAString_initFromFile(&obj->version, fileStream)){
+	if(!TLAString_initFromFile(&obj->version, readFunc, funcParam)){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(!TLAString_initFromFile(&obj->generator, fileStream)){
+	if(!TLAString_initFromFile(&obj->generator, readFunc, funcParam)){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(!TLAString_initFromFile(&obj->note, fileStream)){
+	if(!TLAString_initFromFile(&obj->note, readFunc, funcParam)){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
 	//
-	fread(&obj->stringsLibMaxSz, sizeof(obj->stringsLibMaxSz), 1, fileStream);
+	(*readFunc)(&obj->stringsLibMaxSz, sizeof(obj->stringsLibMaxSz), 1, funcParam);
 	//Strings libs
 	{
 		TlaSI32 i; TlaSI32 count;
-		fread(&count, sizeof(count), 1, fileStream);
+		(*readFunc)(&count, sizeof(count), 1, funcParam);
 		TLAArray_init(&obj->stringsLibs, sizeof(STTLAString), count, 8);
 		for(i = 0; i < count; i++){
 			STTLAString itm;
-			if(!TLAString_initFromFile(&itm, fileStream)){
+			if(!TLAString_initFromFile(&itm, readFunc, funcParam)){
 				TLA_ASSERT(0); return TLA_FALSE;
 			} else {
 				TLAArray_add(&obj->stringsLibs, &itm, sizeof(itm));
@@ -1529,13 +1529,13 @@ TlaBOOL osmInitFromFileBinary(STTlaOsm* pObj, FILE* fileStream){
 	//Nodes
 	{
 		TlaSI32 i; TlaSI32 count;
-		fread(&count, sizeof(count), 1, fileStream);
+		(*readFunc)(&count, sizeof(count), 1, funcParam);
 		TLAArray_init(&obj->nodes, sizeof(STTlaNodePriv), count, 512);
 		for(i = 0; i < count; i++){
 			STTlaNodePriv itm;
-			fread(&itm, sizeof(STTlaNodePriv), 1, fileStream);
+			(*readFunc)(&itm, sizeof(STTlaNodePriv), 1, funcParam);
 			if(itm.tagsInited){
-				if(!TLAArray_initFromFile(&itm.tags, fileStream, NULL)){
+				if(!TLAArray_initFromFile(&itm.tags, readFunc, funcParam, NULL)){
 					TLA_ASSERT(0); return TLA_FALSE;
 				}
 			}
@@ -1545,16 +1545,16 @@ TlaBOOL osmInitFromFileBinary(STTlaOsm* pObj, FILE* fileStream){
 	//Ways
 	{
 		TlaSI32 i; TlaSI32 count;
-		fread(&count, sizeof(count), 1, fileStream);
+		(*readFunc)(&count, sizeof(count), 1, funcParam);
 		TLAArray_init(&obj->ways, sizeof(STTlaWayPriv), count, 512);
 		for(i = 0; i < count; i++){
 			STTlaWayPriv itm;
-			fread(&itm, sizeof(STTlaWayPriv), 1, fileStream);
-			if(!TLAArray_initFromFile(&itm.nodes, fileStream, NULL)){
+			(*readFunc)(&itm, sizeof(STTlaWayPriv), 1, funcParam);
+			if(!TLAArray_initFromFile(&itm.nodes, readFunc, funcParam, NULL)){
 				TLA_ASSERT(0); return TLA_FALSE;
 			}
 			if(itm.tagsInited){
-				if(!TLAArray_initFromFile(&itm.tags, fileStream, NULL)){
+				if(!TLAArray_initFromFile(&itm.tags, readFunc, funcParam, NULL)){
 					TLA_ASSERT(0); return TLA_FALSE;
 				}
 			}
@@ -1564,16 +1564,16 @@ TlaBOOL osmInitFromFileBinary(STTlaOsm* pObj, FILE* fileStream){
 	//Relations
 	{
 		TlaSI32 i; TlaSI32 count;
-		fread(&count, sizeof(count), 1, fileStream);
+		(*readFunc)(&count, sizeof(count), 1, funcParam);
 		TLAArray_init(&obj->relations, sizeof(STTlaRelPriv), count, 512);
 		for(i = 0; i < count; i++){
 			STTlaRelPriv itm;
-			fread(&itm, sizeof(STTlaRelPriv), 1, fileStream);
-			if(!TLAArray_initFromFile(&itm.members, fileStream, NULL)){
+			(*readFunc)(&itm, sizeof(STTlaRelPriv), 1, funcParam);
+			if(!TLAArray_initFromFile(&itm.members, readFunc, funcParam, NULL)){
 				TLA_ASSERT(0); return TLA_FALSE;
 			}
 			if(itm.tagsInited){
-				if(!TLAArray_initFromFile(&itm.tags, fileStream, NULL)){
+				if(!TLAArray_initFromFile(&itm.tags, readFunc, funcParam, NULL)){
 					TLA_ASSERT(0); return TLA_FALSE;
 				}
 			}
@@ -1581,17 +1581,17 @@ TlaBOOL osmInitFromFileBinary(STTlaOsm* pObj, FILE* fileStream){
 		}
 	}
 	//Indexes
-	if(!TLAArraySorted_initFromFile(&obj->idxNodesById, fileStream, NULL)){
+	if(!TLAArraySorted_initFromFile(&obj->idxNodesById, readFunc, funcParam, NULL)){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(!TLAArraySorted_initFromFile(&obj->idxWaysById, fileStream, NULL)){
+	if(!TLAArraySorted_initFromFile(&obj->idxWaysById, readFunc, funcParam, NULL)){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(!TLAArraySorted_initFromFile(&obj->idxRelsById, fileStream, NULL)){
+	if(!TLAArraySorted_initFromFile(&obj->idxRelsById, readFunc, funcParam, NULL)){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
 	//
-	verifEnd = 0; fread(&verifEnd, sizeof(verifEnd), 1, fileStream);
+	verifEnd = 0; (*readFunc)(&verifEnd, sizeof(verifEnd), 1, funcParam);
 	if(verifEnd != TLA_FILE_VERIF_END){
 		return TLA_FALSE;
 	}
@@ -1600,30 +1600,30 @@ TlaBOOL osmInitFromFileBinary(STTlaOsm* pObj, FILE* fileStream){
 
 //Save
 
-TlaBOOL osmSaveToFileAsBinary(STTlaOsm* pObj, FILE* fileStream){
+TlaBOOL osmSaveToBinaryStream(STTlaOsm* pObj, TlaWriteToStreamFunc writeFunc, void* funcParam){
 	STTlaDataPriv* obj = (STTlaDataPriv*)pObj->opaqueData;
 	const TlaSI32 verfiStart = TLA_FILE_VERIF_START, verifEnd = TLA_FILE_VERIF_END;
 	//
-	fwrite(&verfiStart, sizeof(verfiStart), 1, fileStream);
+	(*writeFunc)(&verfiStart, sizeof(verfiStart), 1, funcParam);
 	//
-	if(!TLAString_writeToFile(&obj->version, fileStream, TLA_FALSE)){
+	if(!TLAString_writeToFile(&obj->version, writeFunc, funcParam, TLA_FALSE)){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(!TLAString_writeToFile(&obj->generator, fileStream, TLA_FALSE)){
+	if(!TLAString_writeToFile(&obj->generator, writeFunc, funcParam, TLA_FALSE)){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(!TLAString_writeToFile(&obj->note, fileStream, TLA_FALSE)){
+	if(!TLAString_writeToFile(&obj->note, writeFunc, funcParam, TLA_FALSE)){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
 	//
-	fwrite(&obj->stringsLibMaxSz, sizeof(obj->stringsLibMaxSz), 1, fileStream);
+	(*writeFunc)(&obj->stringsLibMaxSz, sizeof(obj->stringsLibMaxSz), 1, funcParam);
 	//Strings libs
 	{
 		TlaSI32 i; const TlaSI32 count = obj->stringsLibs.use;
-		fwrite(&count, sizeof(count), 1, fileStream);
+		(*writeFunc)(&count, sizeof(count), 1, funcParam);
 		for(i = 0; i < count; i++){
 			STTLAString* itm = (STTLAString*)TLAArray_itemAtIndex(&obj->stringsLibs, i);
-			if(!TLAString_writeToFile(itm, fileStream, TLA_FALSE)){
+			if(!TLAString_writeToFile(itm, writeFunc, funcParam, TLA_FALSE)){
 				TLA_ASSERT(0); return TLA_FALSE;
 			}
 		}
@@ -1631,12 +1631,12 @@ TlaBOOL osmSaveToFileAsBinary(STTlaOsm* pObj, FILE* fileStream){
 	//Nodes
 	{
 		TlaSI32 i; const TlaSI32 count = obj->nodes.use;
-		fwrite(&count, sizeof(count), 1, fileStream);
+		(*writeFunc)(&count, sizeof(count), 1, funcParam);
 		for(i = 0; i < count; i++){
 			STTlaNodePriv* itm = (STTlaNodePriv*)TLAArray_itemAtIndex(&obj->nodes, i);
-			fwrite(itm, sizeof(STTlaNodePriv), 1, fileStream);
+			(*writeFunc)(itm, sizeof(STTlaNodePriv), 1, funcParam);
 			if(itm->tagsInited){
-				if(!TLAArray_writeToFile(&itm->tags, fileStream, TLA_FALSE)){
+				if(!TLAArray_writeToFile(&itm->tags, writeFunc, funcParam, TLA_FALSE)){
 					TLA_ASSERT(0); return TLA_FALSE;
 				}
 			}
@@ -1645,15 +1645,15 @@ TlaBOOL osmSaveToFileAsBinary(STTlaOsm* pObj, FILE* fileStream){
 	//Ways
 	{
 		TlaSI32 i; const TlaSI32 count = obj->ways.use;
-		fwrite(&count, sizeof(count), 1, fileStream);
+		(*writeFunc)(&count, sizeof(count), 1, funcParam);
 		for(i = 0; i < count; i++){
 			STTlaWayPriv* itm = (STTlaWayPriv*)TLAArray_itemAtIndex(&obj->ways, i);
-			fwrite(itm, sizeof(STTlaWayPriv), 1, fileStream);
-			if(!TLAArray_writeToFile(&itm->nodes, fileStream, TLA_FALSE)){
+			(*writeFunc)(itm, sizeof(STTlaWayPriv), 1, funcParam);
+			if(!TLAArray_writeToFile(&itm->nodes, writeFunc, funcParam, TLA_FALSE)){
 				TLA_ASSERT(0); return TLA_FALSE;
 			}
 			if(itm->tagsInited){
-				if(!TLAArray_writeToFile(&itm->tags, fileStream, TLA_FALSE)){
+				if(!TLAArray_writeToFile(&itm->tags, writeFunc, funcParam, TLA_FALSE)){
 					TLA_ASSERT(0); return TLA_FALSE;
 				}
 			}
@@ -1662,48 +1662,33 @@ TlaBOOL osmSaveToFileAsBinary(STTlaOsm* pObj, FILE* fileStream){
 	//Relations
 	{
 		TlaSI32 i; const TlaSI32 count = obj->relations.use;
-		fwrite(&count, sizeof(count), 1, fileStream);
+		(*writeFunc)(&count, sizeof(count), 1, funcParam);
 		for(i = 0; i < count; i++){
 			STTlaRelPriv* itm = (STTlaRelPriv*)TLAArray_itemAtIndex(&obj->relations, i);
-			fwrite(itm, sizeof(STTlaRelPriv), 1, fileStream);
-			if(!TLAArray_writeToFile(&itm->members, fileStream, TLA_FALSE)){
+			(*writeFunc)(itm, sizeof(STTlaRelPriv), 1, funcParam);
+			if(!TLAArray_writeToFile(&itm->members, writeFunc, funcParam, TLA_FALSE)){
 				TLA_ASSERT(0); return TLA_FALSE;
 			}
 			if(itm->tagsInited){
-				if(!TLAArray_writeToFile(&itm->tags, fileStream, TLA_FALSE)){
+				if(!TLAArray_writeToFile(&itm->tags, writeFunc, funcParam, TLA_FALSE)){
 					TLA_ASSERT(0); return TLA_FALSE;
 				}
 			}
 		}
 	}
 	//Indexes
-	if(!TLAArraySorted_writeToFile(&obj->idxNodesById, fileStream, TLA_FALSE)){
+	if(!TLAArraySorted_writeToFile(&obj->idxNodesById, writeFunc, funcParam, TLA_FALSE)){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(!TLAArraySorted_writeToFile(&obj->idxWaysById, fileStream, TLA_FALSE)){
+	if(!TLAArraySorted_writeToFile(&obj->idxWaysById, writeFunc, funcParam, TLA_FALSE)){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(!TLAArraySorted_writeToFile(&obj->idxRelsById, fileStream, TLA_FALSE)){
+	if(!TLAArraySorted_writeToFile(&obj->idxRelsById, writeFunc, funcParam, TLA_FALSE)){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
 	//
-	fwrite(&verifEnd, sizeof(verifEnd), 1, fileStream);
+	(*writeFunc)(&verifEnd, sizeof(verifEnd), 1, funcParam);
 	//
-	/*typedef struct STTlaDataPriv_ {
-		STTLAString			version;		//Value of "osm:version" param.
-		STTLAString			generator;		//Value of "osm:generator" param.
-		STTLAString			note;			//Value of "osm/note" node.
-		//
-		TlaSI32				stringsLibMaxSz;//Maximun size per string library
-		STTLAArray			stringsLibs;	//Array with strings libraries contaning all strings values
-		STTLAArray			nodes;			//Array of "STTlaNodePriv"
-		STTLAArray			ways;			//Array of "STTlaWayPriv"
-		STTLAArray			relations;		//Array of "STTlaRelPriv"
-		//Search indexes
-		STTLAArraySorted	idxNodesById;	//Array of "STTlaIdxById"
-		STTLAArraySorted	idxWaysById;	//Array of "STTlaIdxById"
-		STTLAArraySorted	idxRelsById;	//Array of "STTlaIdxById"
-	} STTlaDataPriv;*/
 	return TLA_TRUE;
 }
 
@@ -1881,73 +1866,73 @@ void* TLAArray_set(STTLAArray* obj, const TlaSI32 index, const void* data, const
 }
 
 //File
-TlaBOOL TLAArray_writeToFile(const STTLAArray* obj, FILE* file, const TlaBOOL includeUnusedBuffer){
+TlaBOOL TLAArray_writeToFile(const STTLAArray* obj, TlaWriteToStreamFunc writeFunc, void* funcParam, const TlaBOOL includeUnusedBuffer){
 	const TlaSI32 verfiStart		= TLA_FILE_VERIF_START, verifEnd = TLA_FILE_VERIF_END;
 	const TlaSI32 incUnusedBuffer	= (includeUnusedBuffer != TLA_FALSE ? 1 : 0);
 	const TlaSI32 itemsToWrite		= (includeUnusedBuffer != TLA_FALSE ? obj->_buffSize : obj->use);
-	if(obj == NULL || file == NULL){
+	if(obj == NULL){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
 	TLA_ASSERT(obj->use == 0 || obj->_buffData != NULL)
-	if(fwrite(&verfiStart, sizeof(verfiStart), 1, file) != 1){
+	if((*writeFunc)(&verfiStart, sizeof(verfiStart), 1, funcParam) != 1){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(fwrite(&obj->use, sizeof(obj->use), 1, file) != 1){
+	if((*writeFunc)(&obj->use, sizeof(obj->use), 1, funcParam) != 1){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(fwrite(&incUnusedBuffer, sizeof(incUnusedBuffer), 1, file) != 1){
+	if((*writeFunc)(&incUnusedBuffer, sizeof(incUnusedBuffer), 1, funcParam) != 1){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
 	if(incUnusedBuffer){
-		if(fwrite(&obj->_buffSize, sizeof(obj->_buffSize), 1, file) != 1){
+		if((*writeFunc)(&obj->_buffSize, sizeof(obj->_buffSize), 1, funcParam) != 1){
 			TLA_ASSERT(0); return TLA_FALSE;
 		}
 	}
-	if(fwrite(&obj->_bytesPerItem, sizeof(obj->_bytesPerItem), 1, file) != 1){
+	if((*writeFunc)(&obj->_bytesPerItem, sizeof(obj->_bytesPerItem), 1, funcParam) != 1){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(fwrite(&obj->_buffGrowth, sizeof(obj->_buffGrowth), 1, file) != 1){
+	if((*writeFunc)(&obj->_buffGrowth, sizeof(obj->_buffGrowth), 1, funcParam) != 1){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
 	if(itemsToWrite > 0){
-		if(fwrite(obj->_buffData, 1, (obj->_bytesPerItem * itemsToWrite), file) != (obj->_bytesPerItem * itemsToWrite)){
+		if((*writeFunc)(obj->_buffData, 1, (obj->_bytesPerItem * itemsToWrite), funcParam) != (obj->_bytesPerItem * itemsToWrite)){
 			TLA_ASSERT(0); return TLA_FALSE;
 		}
 	}
-	if(fwrite(&verifEnd, sizeof(verifEnd), 1, file) != 1){
+	if((*writeFunc)(&verifEnd, sizeof(verifEnd), 1, funcParam) != 1){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
 	return TLA_TRUE;
 }
 
-TlaBOOL TLAArray_initFromFile(STTLAArray* obj, FILE* file, TlaBYTE* optExternalBuffer){
+TlaBOOL TLAArray_initFromFile(STTLAArray* obj, TlaReadFromStreamFunc readFunc, void* funcParam, TlaBYTE* optExternalBuffer){
 	TlaSI32 verfiStart, verifEnd; TlaSI32 incUnusedBuffer; TlaSI32 sizeToInit = 0;
-	if(obj == NULL || file == NULL){
+	if(obj == NULL){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
-	if(fread(&verfiStart, sizeof(verfiStart), 1, file) != 1){
+	if((*readFunc)(&verfiStart, sizeof(verfiStart), 1, funcParam) != 1){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	} else if(verfiStart != TLA_FILE_VERIF_START){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
-	if(fread(&obj->use, sizeof(obj->use), 1, file) != 1){
+	if((*readFunc)(&obj->use, sizeof(obj->use), 1, funcParam) != 1){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
-	if(fread(&incUnusedBuffer, sizeof(incUnusedBuffer), 1, file) != 1){
+	if((*readFunc)(&incUnusedBuffer, sizeof(incUnusedBuffer), 1, funcParam) != 1){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
 	if(incUnusedBuffer){
-		if(fread(&obj->_buffSize, sizeof(obj->_buffSize), 1, file) != 1){
+		if((*readFunc)(&obj->_buffSize, sizeof(obj->_buffSize), 1, funcParam) != 1){
 			TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 		}
 		sizeToInit = obj->_buffSize;
 	} else {
 		sizeToInit = obj->use;
 	}
-	if(fread(&obj->_bytesPerItem, sizeof(obj->_bytesPerItem), 1, file) != 1){
+	if((*readFunc)(&obj->_bytesPerItem, sizeof(obj->_bytesPerItem), 1, funcParam) != 1){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
-	if(fread(&obj->_buffGrowth, sizeof(obj->_buffGrowth), 1, file) != 1){
+	if((*readFunc)(&obj->_buffGrowth, sizeof(obj->_buffGrowth), 1, funcParam) != 1){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
 	if(obj->use < 0 || obj->_bytesPerItem <= 0 || obj->_buffGrowth <= 0){
@@ -1963,14 +1948,14 @@ TlaBOOL TLAArray_initFromFile(STTLAArray* obj, FILE* file, TlaBYTE* optExternalB
 			if(obj->_buffData == NULL){
 				TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 			} else {
-				if(fread(obj->_buffData, 1, (obj->_bytesPerItem * obj->_buffSize), file) != (obj->_bytesPerItem * obj->_buffSize)){
+				if((*readFunc)(obj->_buffData, 1, (obj->_bytesPerItem * obj->_buffSize), funcParam) != (obj->_bytesPerItem * obj->_buffSize)){
 					TLA_FREE(obj->_buffData);
 					TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 				}
 			}
 		}
 	}
-	if(fread(&verifEnd, sizeof(verifEnd), 1, file) != 1){
+	if((*readFunc)(&verifEnd, sizeof(verifEnd), 1, funcParam) != 1){
 		if(obj->_buffData != NULL){ TLA_FREE(obj->_buffData); obj->_buffData = NULL; }
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	} else if(verifEnd != TLA_FILE_VERIF_END){
@@ -2125,46 +2110,46 @@ void TLAArraySorted_dbgValidate(STTLAArraySorted* obj){
 
 //File
 
-TlaBOOL TLAArraySorted_writeToFile(const STTLAArraySorted* obj, FILE* file, const TlaBOOL includeUnusedBuffer){
+TlaBOOL TLAArraySorted_writeToFile(const STTLAArraySorted* obj, TlaWriteToStreamFunc writeFunc, void* funcParam, const TlaBOOL includeUnusedBuffer){
 	const TlaSI32 verfiStart = TLA_FILE_VERIF_START, verifEnd = TLA_FILE_VERIF_END;
-	if(obj == NULL || file == NULL){
+	if(obj == NULL){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(fwrite(&verfiStart, sizeof(verfiStart), 1, file) != 1){
+	if((*writeFunc)(&verfiStart, sizeof(verfiStart), 1, funcParam) != 1){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(fwrite(&obj->bytesToCompare, sizeof(obj->bytesToCompare), 1, file) != 1){
+	if((*writeFunc)(&obj->bytesToCompare, sizeof(obj->bytesToCompare), 1, funcParam) != 1){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(!TLAArray_writeToFile(&obj->_array, file, includeUnusedBuffer)){
+	if(!TLAArray_writeToFile(&obj->_array, writeFunc, funcParam, includeUnusedBuffer)){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(fwrite(&verifEnd, sizeof(verifEnd), 1, file) != 1){
+	if((*writeFunc)(&verifEnd, sizeof(verifEnd), 1, funcParam) != 1){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
 	return TLA_TRUE;
 }
 
-TlaBOOL TLAArraySorted_initFromFile(STTLAArraySorted* obj, FILE* file, TlaBYTE* optExternalBuffer){
+TlaBOOL TLAArraySorted_initFromFile(STTLAArraySorted* obj, TlaReadFromStreamFunc readFunc, void* funcParam, TlaBYTE* optExternalBuffer){
 	TlaSI32 verfiStart, verifEnd;
-	if(obj == NULL || file == NULL){
+	if(obj == NULL){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
-	if(fread(&verfiStart, sizeof(verfiStart), 1, file) != 1){
+	if((*readFunc)(&verfiStart, sizeof(verfiStart), 1, funcParam) != 1){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	} else if(verfiStart != TLA_FILE_VERIF_START){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
-	if(fread(&obj->bytesToCompare, sizeof(obj->bytesToCompare), 1, file) != 1){
+	if((*readFunc)(&obj->bytesToCompare, sizeof(obj->bytesToCompare), 1, funcParam) != 1){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
 	if(obj->bytesToCompare <= 0){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
-	if(!TLAArray_initFromFile(&obj->_array, file, optExternalBuffer)){
+	if(!TLAArray_initFromFile(&obj->_array, readFunc, funcParam, optExternalBuffer)){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
-	if(fread(&verifEnd, sizeof(verifEnd), 1, file) != 1){
+	if((*readFunc)(&verifEnd, sizeof(verifEnd), 1, funcParam) != 1){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	} else if(verifEnd != TLA_FILE_VERIF_END){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
@@ -2850,68 +2835,68 @@ TlaSI32 TLAString_toTlaSI32FromHexLenIfValid(const char* string, const TlaSI32 s
 
 //File
 
-TlaBOOL TLAString_writeToFile(const STTLAString* obj, FILE* file, const TlaBOOL includeUnusedBuffer){
+TlaBOOL TLAString_writeToFile(const STTLAString* obj, TlaWriteToStreamFunc writeFunc, void* funcParam, const TlaBOOL includeUnusedBuffer){
 	const TlaSI32 verfiStart		= TLA_FILE_VERIF_START, verifEnd = TLA_FILE_VERIF_END;
 	const TlaSI32 incUnusedBuff		= (includeUnusedBuffer != TLA_FALSE ? 1 : 0);
 	const TlaSI32 bytesToWrite		= (includeUnusedBuffer != TLA_FALSE ? obj->_buffSize : (obj->lenght + 1));
-	if(obj == NULL || file == NULL){
+	if(obj == NULL){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
 	TLA_ASSERT(obj->lenght == 0 || obj->str != NULL)
-	if(fwrite(&verfiStart, sizeof(verfiStart), 1, file) != 1){
+	if((*writeFunc)(&verfiStart, sizeof(verfiStart), 1, funcParam) != 1){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(fwrite(&obj->lenght, sizeof(obj->lenght), 1, file) != 1){
+	if((*writeFunc)(&obj->lenght, sizeof(obj->lenght), 1, funcParam) != 1){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
-	if(fwrite(&incUnusedBuff, sizeof(incUnusedBuff), 1, file) != 1){
+	if((*writeFunc)(&incUnusedBuff, sizeof(incUnusedBuff), 1, funcParam) != 1){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
 	if(incUnusedBuff){
-		if(fwrite(&obj->_buffSize, sizeof(obj->_buffSize), 1, file) != 1){
+		if((*writeFunc)(&obj->_buffSize, sizeof(obj->_buffSize), 1, funcParam) != 1){
 			TLA_ASSERT(0); return TLA_FALSE;
 		}
 	}
-	if(fwrite(&obj->_buffGrowth, sizeof(obj->_buffGrowth), 1, file) != 1){
+	if((*writeFunc)(&obj->_buffGrowth, sizeof(obj->_buffGrowth), 1, funcParam) != 1){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
 	if(bytesToWrite > 0){
-		if(fwrite(obj->str, sizeof(TlaBYTE), bytesToWrite, file) != bytesToWrite){
+		if((*writeFunc)(obj->str, sizeof(TlaBYTE), bytesToWrite, funcParam) != bytesToWrite){
 			TLA_ASSERT(0); return TLA_FALSE;
 		}
 	}
-	if(fwrite(&verifEnd, sizeof(verifEnd), 1, file) != 1){
+	if((*writeFunc)(&verifEnd, sizeof(verifEnd), 1, funcParam) != 1){
 		TLA_ASSERT(0); return TLA_FALSE;
 	}
 	return TLA_TRUE;
 }
 
-TlaBOOL TLAString_initFromFile(STTLAString* obj, FILE* file){
+TlaBOOL TLAString_initFromFile(STTLAString* obj, TlaReadFromStreamFunc readFunc, void* funcParam){
 	TlaSI32 verfiStart, verifEnd, includesUnusedBuffer = 0; TlaUI32 bytesToLoad = 0;
 	//
-	if(obj == NULL || file == NULL){
+	if(obj == NULL){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
-	if(fread(&verfiStart, sizeof(verfiStart), 1, file) != 1){
+	if((*readFunc)(&verfiStart, sizeof(verfiStart), 1, funcParam) != 1){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	} else if(verfiStart != TLA_FILE_VERIF_START){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
-	if(fread(&obj->lenght, sizeof(obj->lenght), 1, file) != 1){
+	if((*readFunc)(&obj->lenght, sizeof(obj->lenght), 1, funcParam) != 1){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
-	if(fread(&includesUnusedBuffer, sizeof(includesUnusedBuffer), 1, file) != 1){
+	if((*readFunc)(&includesUnusedBuffer, sizeof(includesUnusedBuffer), 1, funcParam) != 1){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
 	if(includesUnusedBuffer){
-		if(fread(&obj->_buffSize, sizeof(obj->_buffSize), 1, file) != 1){
+		if((*readFunc)(&obj->_buffSize, sizeof(obj->_buffSize), 1, funcParam) != 1){
 			TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 		}
 		bytesToLoad = obj->_buffSize;
 	} else {
 		bytesToLoad = obj->lenght + 1;
 	}
-	if(fread(&obj->_buffGrowth, sizeof(obj->_buffGrowth), 1, file) != 1){
+	if((*readFunc)(&obj->_buffGrowth, sizeof(obj->_buffGrowth), 1, funcParam) != 1){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
 	if(obj->_buffGrowth <= 0){
@@ -2924,13 +2909,13 @@ TlaBOOL TLAString_initFromFile(STTLAString* obj, FILE* file){
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	}
 	if(bytesToLoad > 0){
-		if(fread(obj->str, sizeof(char), bytesToLoad, file) != bytesToLoad){
+		if((*readFunc)(obj->str, sizeof(char), bytesToLoad, funcParam) != bytesToLoad){
 			TLA_FREE(obj->str);
 			TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 		}
 	}
 	obj->str[obj->lenght] = '\0';
-	if(fread(&verifEnd, sizeof(verifEnd), 1, file) != 1){
+	if((*readFunc)(&verifEnd, sizeof(verifEnd), 1, funcParam) != 1){
 		TLA_FREE(obj->str);
 		TLA_ASSERT_LOADFILE(0); return TLA_FALSE;
 	} else if(verifEnd != TLA_FILE_VERIF_END){

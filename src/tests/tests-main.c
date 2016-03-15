@@ -8,7 +8,8 @@
 
 #include "tlali-osm.h"
 #include "../../src/tlali-osm.c"
-#include <time.h> //clock_t, clock()
+#include <stdio.h>	//FILE*
+#include <time.h>	//clock_t, clock()
 
 #ifdef _WIN32
 #	define CPU_CICLES_TYPE				TlaUI64
@@ -22,7 +23,18 @@
 
 TlaBOOL testLoadOsmFromFileXml(STTlaOsm* osmData, const char* strPathLoadXml);
 TlaBOOL testSaveAndLoadOsmFromFileBinary(STTlaOsm* osmData, STTlaOsm* loadCopy, const char* strPathSaveBin);
-TlaBOOL testPrintOsmDta(STTlaOsm* osmData);
+TlaBOOL testPrintOsmData(STTlaOsm* osmData);
+
+//Read from file-stream function
+TlaSI32 myReadFromFileFunc(void* dstBuffer, const TlaSI32 sizeOfBlock, const TlaSI32 maxBlocksToRead, void* userData){
+	return (TlaSI32)fread(dstBuffer, sizeOfBlock, maxBlocksToRead, (FILE*) userData);
+}
+
+//Write to file-stream function
+TlaSI32 myWriteToFileFunc(const void* srcBuffer, const TlaSI32 sizeOfBlock, const TlaSI32 maxBlocksToRead, void* userData){
+	return (TlaSI32)fwrite(srcBuffer, sizeOfBlock, maxBlocksToRead, (FILE*) userData);
+}
+
 
 int main(int argc, const char * argv[]) {
 	STTlaOsm osmFromXml;
@@ -32,12 +44,12 @@ int main(int argc, const char * argv[]) {
 	if(!testLoadOsmFromFileXml(&osmFromXml, "./rutasManagua.xml")){
 		TLA_ASSERT(0);
 	} else {
-		//testPrintOsmDta(&osmData);
+		//testPrintOsmData(&osmData);
 		STTlaOsm osmFromBin;
 		if(!testSaveAndLoadOsmFromFileBinary(&osmFromXml, &osmFromBin, "./rutasManagua.bin")){
 			TLA_ASSERT(0);
 		} else {
-			//testPrintOsmDta(&osmFromBin);
+			//testPrintOsmData(&osmFromBin);
 			osmRelease(&osmFromBin);
 		}
 	}
@@ -61,7 +73,7 @@ TlaBOOL testLoadOsmFromFileXml(STTlaOsm* osmData, const char* strPathLoadXml){
 		} else {
 			CPU_CICLES_TYPE timeStart, timeEnd, timeTicksPerSec;
 			CPU_CICLES_CUR_THREAD(timeStart)
-			if(!osmLoadFromFileXml(osmData, stream)){
+			if(!osmLoadFromXmlStream(osmData, myReadFromFileFunc, stream)){
 				TLA_PRINTF_ERROR("File found but could not be parsed: '%s'.\n", strPathLoadXml);
 			} else {
 				CPU_CICLES_CUR_THREAD(timeEnd)
@@ -86,7 +98,7 @@ TlaBOOL testSaveAndLoadOsmFromFileBinary(STTlaOsm* osmData, STTlaOsm* loadCopy, 
 		} else {
 			CPU_CICLES_TYPE timeStart, timeEnd, timeTicksPerSec;
 			CPU_CICLES_CUR_THREAD(timeStart)
-			if(!osmSaveToFileAsBinary(osmData, stream)){
+			if(!osmSaveToBinaryStream(osmData, myWriteToFileFunc, stream)){
 				TLA_ASSERT(0);
 			} else {
 				CPU_CICLES_CUR_THREAD(timeEnd)
@@ -107,7 +119,7 @@ TlaBOOL testSaveAndLoadOsmFromFileBinary(STTlaOsm* osmData, STTlaOsm* loadCopy, 
 		} else {
 			CPU_CICLES_TYPE timeStart, timeEnd, timeTicksPerSec;
 			CPU_CICLES_CUR_THREAD(timeStart)
-			if(!osmInitFromFileBinary(loadCopy, stream)){
+			if(!osmInitFromBinaryStream(loadCopy, myReadFromFileFunc, stream)){
 				TLA_ASSERT(0);
 			} else {
 				CPU_CICLES_CUR_THREAD(timeEnd)
@@ -122,7 +134,7 @@ TlaBOOL testSaveAndLoadOsmFromFileBinary(STTlaOsm* osmData, STTlaOsm* loadCopy, 
 	return r;
 }
 
-TlaBOOL testPrintOsmDta(STTlaOsm* osmData){
+TlaBOOL testPrintOsmData(STTlaOsm* osmData){
 	CPU_CICLES_TYPE timeStart, timeEnd, timeTicksPerSec;
 	CPU_CICLES_CUR_THREAD(timeStart)
 	//Walk nodes
